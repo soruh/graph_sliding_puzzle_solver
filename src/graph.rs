@@ -1,4 +1,4 @@
-#[derive(serde::Serialize, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(serde::Serialize, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Block {
     pub position: (u32, u32),
     pub size: (u32, u32),
@@ -47,29 +47,11 @@ impl Board {
 
         let new_x = block.position.0 as i32 + delta.0;
         if new_x < 0 || new_x + block.size.0 as i32 > self.size.0 as i32 {
-            // println!("{:?} is out of bounds", block);
-            // println!("{} < 0: {}", new_x, new_x < 0);
-            // println!(
-            //     "{} + {} > {}: {}",
-            //     new_x,
-            //     block.size.0,
-            //     self.size.0,
-            //     new_x + block.size.0 as i32 > self.size.0 as i32
-            // );
             return Err(());
         }
 
         let new_y = block.position.1 as i32 + delta.1;
         if new_y < 0 || new_y + block.size.1 as i32 > self.size.1 as i32 {
-            // println!("{:?} is out of bounds", block);
-            // println!("{} < 0: {}", new_y, new_y < 0);
-            // println!(
-            //     "{} + {} > {}: {}",
-            //     new_y,
-            //     block.size.0,
-            //     self.size.0,
-            //     new_y + block.size.0 as i32 > self.size.0 as i32
-            // );
             return Err(());
         }
 
@@ -81,7 +63,6 @@ impl Board {
         for (index, block) in self.blocks.iter().enumerate() {
             if block_index != index {
                 if moved.overlaps_with(&block) {
-                    // println!("{:?} overlaps with {:?}", moved, block);
                     successful = false;
                     break;
                 }
@@ -90,7 +71,6 @@ impl Board {
 
         if successful {
             let mut new_board = self.clone();
-
             new_board.blocks[block_index] = moved;
 
             Ok(new_board)
@@ -102,7 +82,9 @@ impl Board {
 
 impl std::fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut grid = vec![vec![' '; self.size.0 as usize]; self.size.1 as usize];
+        let mut grid = vec![vec![None; self.size.0 as usize]; self.size.1 as usize];
+
+        let n_digits = (self.blocks.len() as f32).log10().ceil() as usize;
 
         for (index, block) in self.blocks.iter().enumerate() {
             let position = block.position;
@@ -110,23 +92,28 @@ impl std::fmt::Display for Board {
 
             for i in position.0..position.0 + size.0 as u32 {
                 for j in position.1..position.1 + size.1 as u32 {
-                    grid[j as usize][i as usize] = std::char::from_digit(index as u32, 10).unwrap();
+                    grid[j as usize][i as usize] = Some(index);
                 }
             }
         }
 
         let mut res = String::with_capacity((grid[0].len() + 2) * (grid.len() + 2));
 
-        let seperator = "-".repeat(grid[0].len() + 2);
+        let seperator = "-".repeat(grid[0].len() * (n_digits + 1) + 1);
 
         res.push_str(&seperator);
         res.push('\n');
         for line in grid {
             res.push('|');
-            for character in line {
-                res.push(character);
+
+            for number in line {
+                if let Some(number) = number {
+                    res.push_str(&format!("{:width$}", number, width = n_digits));
+                } else {
+                    res.push_str(&" ".repeat(n_digits));
+                }
+                res.push('|');
             }
-            res.push('|');
             res.push('\n');
         }
         res.push_str(&seperator);
@@ -135,7 +122,7 @@ impl std::fmt::Display for Board {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Direction {
     Up,
     Right,
@@ -156,11 +143,8 @@ impl Direction {
             Self::Left => Self::Up,
         };
 
-        if let Self::Up = *self {
-            true
-        } else {
-            false
-        }
+        // Have we gone full circle?
+        *self == Self::Up
     }
 
     pub fn delta(&self) -> (i32, i32) {
@@ -183,25 +167,16 @@ impl Iterator for Neighbors {
     type Item = Board;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            // Advance to next direction
             if self.direction.next() {
-                // advance to next block, if we cycled
+                // advance to next block, if we cycledthrough directions
                 self.block += 1;
 
                 if self.block >= self.board.blocks.len() {
-                    // println!("No more possibilites for moves");
-                    return None; // We are done
+                    return None;
                 }
             }
 
-            // println!(
-            //     "block: {} => {:?}",
-            //     self.block, self.board.blocks[self.block],
-            // );
-            // println!("direction: {:?}", self.direction);
-
             if let Ok(board) = self.board.try_move(self.block, &self.direction) {
-                // println!("Found a valid move.");
                 return Some(board);
             }
         }

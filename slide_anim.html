@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      var data = JSON.parse(
+        '{"initial":{"size":[4,4],"blocks":[{"position":[0,0],"size":[1,1]},{"position":[2,0],"size":[1,1]},{"position":[1,2],"size":[1,1]},{"position":[0,1],"size":[1,1]},{"position":[2,1],"size":[1,1]},{"position":[0,2],"size":[1,1]},{"position":[3,2],"size":[1,1]},{"position":[1,1],"size":[1,1]},{"position":[1,3],"size":[1,1]},{"position":[2,3],"size":[1,1]},{"position":[0,3],"size":[1,1]},{"position":[1,0],"size":[1,1]},{"position":[3,0],"size":[1,1]},{"position":[3,3],"size":[1,1]},{"position":[3,1],"size":[1,1]}]},"moves":[[4,[2,2]],[7,[2,1]],[2,[1,1]],[4,[1,2]],[6,[2,2]],[14,[3,2]],[7,[3,1]],[2,[2,1]],[3,[1,1]],[5,[0,1]],[4,[0,2]],[6,[1,2]],[2,[2,2]],[3,[2,1]],[11,[1,1]],[1,[1,0]],[3,[2,0]],[2,[2,1]],[14,[2,2]],[7,[3,2]],[12,[3,1]],[3,[3,0]],[2,[2,0]],[12,[2,1]],[7,[3,1]],[14,[3,2]],[6,[2,2]],[11,[1,2]],[12,[1,1]],[6,[2,1]],[11,[2,2]],[12,[1,2]],[5,[1,1]],[4,[0,1]],[10,[0,2]],[8,[0,3]],[12,[1,3]],[10,[1,2]],[8,[0,2]],[12,[0,3]],[9,[1,3]],[13,[2,3]],[14,[3,3]],[11,[3,2]],[10,[2,2]],[9,[1,2]],[13,[1,3]],[14,[2,3]]]}'
+      );
+    </script>
+  </head>
+  <body>
+    <button onclick="startInverval()">start</button>
+    <button onclick="clearInterval(window.interval);">stop</button>
+    <button onclick="reset();">reset</button>
+    <button onclick="next();">step forward</button>
+    <button onclick="previous();">step backward</button>
+
+    <canvas id="display"></canvas>
+    <script>
+      function startInverval() {
+        clearInterval(window.interval);
+        window.interval = setInterval(() => {
+          if (next()) clearInterval(window.interval);
+          render();
+        }, intervalSpeed);
+      }
+      function reset() {
+        i = 0;
+        state = JSON.parse(JSON.stringify(data.initial));
+        render();
+      }
+
+      function validateI() {
+        if (i < 0) i = 0;
+        if (i > data.moves.length - 1) i = data.moves.length - 1;
+      }
+
+      function next() {
+        validateI();
+        performMove(data.moves[i++]);
+        return i > data.moves.length - 1;
+      }
+
+      function previous() {
+        validateI();
+        performMove(data.moves[i--]);
+        return i < 0;
+      }
+
+      function performMove(move) {
+        var offset = (delta, i) => {
+          delta.map(x => (x * i) / MAX);
+        };
+
+        var block = state.blocks[move[0]];
+        var delta = move[1].map((x, i) => x - block.position[i]);
+
+        var MAX = 20;
+        var i = 0;
+
+        var int = setInterval(() => {
+          console.log("animation is at " + i + "/" + MAX);
+
+          if (i >= MAX) {
+            clearInterval(int);
+
+            state.blocks[move[0]].position = move[1];
+            render();
+            return;
+          } else {
+            requestAnimationFrame(() => {
+              clearBlock(block, offset(delta, i));
+
+              renderBlock(block, move[0], offset(delta, i + 1));
+            });
+          }
+
+          i++;
+        }, 100);
+      }
+
+      function skip_to(j) {
+        while (i < j) next();
+        while (i > j) previous();
+      }
+
+      function clearBlock(block, offset) {
+        if (!offset) offset = [0, 0];
+
+        var args = [
+          (block.position[0] + offset[0]) * cellSize,
+          (block.position[1] + offset[1]) * cellSize,
+          block.size[0] * cellSize,
+          block.size[1] * cellSize
+        ];
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.strokeStyle = "#FFFFFF";
+
+        ctx.fillRect.apply(ctx, args);
+        ctx.strokeRect.apply(ctx, args);
+      }
+
+      function renderBlock(block, n, offset) {
+        if (!offset) offset = [0, 0];
+
+        if (~keyBlocks.indexOf(n)) {
+          ctx.fillStyle = primaryStyle;
+        } else {
+          ctx.fillStyle = colors[n % colors.length];
+        }
+
+        ctx.strokeStyle = "#000000";
+
+        var args = [
+          (block.position[0] + offset[0]) * cellSize,
+          (block.position[1] + offset[1]) * cellSize,
+          block.size[0] * cellSize,
+          block.size[1] * cellSize
+        ];
+
+        ctx.fillRect.apply(ctx, args);
+        ctx.strokeRect.apply(ctx, args);
+
+        ctx.fillStyle = "#000000";
+        ctx.fillText(
+          n,
+          (block.position[0] + offset[0]) * cellSize + (1 / 2) * cellSize,
+          (block.position[1] + offset[1]) * cellSize + (1 / 2) * cellSize,
+          cellSize
+        );
+      }
+
+      function render() {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold " + fontSize + "px serif";
+
+        for (var n in state.blocks) {
+          renderBlock(state.blocks[n], n);
+        }
+
+        if (target) {
+          ctx.fillStyle = targetStyle;
+          for (
+            var n = target.position[0];
+            n < target.position[0] + target.size[0];
+            n++
+          ) {
+            for (
+              var m = target.position[1];
+              m < target.position[1] + target.size[1];
+              m++
+            ) {
+              ctx.fillRect(
+                cellSize * (n + (1 - targetScale) / 2),
+                cellSize * (m + (1 - targetScale) / 2),
+                targetSize,
+                targetSize
+              );
+            }
+          }
+        }
+      }
+    </script>
+    <script>
+      var colors = ["#777"]; // , "#F77", "#7F7", "#77F", "#FF7", "#7FF", "#F7F"
+      var primaryStyle = "#F00";
+      var targetStyle = "#0F0";
+      var HEIGHT = window.innerHeight;
+      var targetScale = 1 / 4;
+      var keyBlocks = [];
+      var target = null;
+
+      var intervalSpeed = 500;
+
+      var cellSize = HEIGHT / data.initial.size[1];
+      var WIDTH = cellSize * data.initial.size[0];
+      var targetSize = targetScale * cellSize;
+      var fontSize = Math.floor(cellSize / 3);
+
+      var canvas = document.getElementById("display");
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+      var ctx = canvas.getContext("2d");
+
+      reset();
+    </script>
+  </body>
+</html>
