@@ -29,7 +29,7 @@ impl Block {
 }
 
 /// Respresents a board state; It is a node in the graph.
-#[derive(serde::Serialize, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(serde::Serialize, Clone, Debug, Hash, Eq, PartialEq, Default)]
 pub struct Board {
     pub size: (u32, u32),
     pub blocks: Vec<Block>,
@@ -43,7 +43,7 @@ impl Board {
     /// creates an iterator that iterates over all Board states that can be
     /// directly reached from this one
     pub fn neighbors(&self) -> Neighbors {
-        Neighbors { board: self.clone(), block: 0, direction: Direction::new() }
+        Neighbors { board: self.clone(), ..Default::default() }
     }
 
     /// try to move a block in a direction.
@@ -53,17 +53,14 @@ impl Board {
         let block = &self.blocks[block_index];
         let delta = direction.delta();
 
+        // Check if the move is invalid, because it would move out of bounds
         let new_x = block.position.0 as i32 + delta.0;
         if new_x < 0 || new_x + block.size.0 as i32 > self.size.0 as i32 {
-            // The move is invalid, because it would move
-            // out of bounds
             return Err(());
         }
 
         let new_y = block.position.1 as i32 + delta.1;
         if new_y < 0 || new_y + block.size.1 as i32 > self.size.1 as i32 {
-            // The move is invalid, because it would move
-            // out of bounds
             return Err(());
         }
 
@@ -71,17 +68,16 @@ impl Board {
         moved.position.0 = new_x as u32;
         moved.position.1 = new_y as u32;
 
+        // Check if the move is invalid, because it would move into a different block
         for (index, block) in self.blocks.iter().enumerate() {
             if block_index != index {
                 if moved.overlaps_with(&block) {
-                    // The move is invalid, because it would move
-                    // into a different block
                     return Err(());
                 }
             }
         }
 
-        // The move is valid; return it
+        // The move is valid; return it's result
         let mut new_board = self.clone();
         new_board.blocks[block_index] = moved;
         Ok(new_board)
@@ -141,6 +137,12 @@ pub enum Direction {
     Left,
 }
 
+impl Default for Direction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Direction {
     pub fn new() -> Self {
         Self::Up
@@ -176,6 +178,7 @@ impl Direction {
 
 /// An Iterator that iterates over all valid board states
 /// that can be reached from the current state
+#[derive(Default)]
 pub struct Neighbors {
     board: Board,
     block: usize,

@@ -3,8 +3,7 @@ mod graph;
 fn main() {
     use graph::{Block, Board};
 
-    use pathfinding::directed::astar::astar;
-    use pathfinding::directed::dijkstra::dijkstra;
+    use pathfinding::directed::{astar::astar, dijkstra::dijkstra};
 
     /*
     let target_position = (1, 3);
@@ -47,47 +46,41 @@ fn main() {
     );
     */
 
-    let initial = Board::new(
-        (4, 4),
-        vec![
-            Block::new((0, 0), (1, 1)),
-            Block::new((2, 0), (1, 1)),
-            Block::new((1, 2), (1, 1)),
-            Block::new((0, 1), (1, 1)),
-            Block::new((2, 1), (1, 1)),
-            Block::new((0, 2), (1, 1)),
-            Block::new((3, 2), (1, 1)),
-            Block::new((1, 1), (1, 1)),
-            Block::new((1, 3), (1, 1)),
-            Block::new((2, 3), (1, 1)),
-            Block::new((0, 3), (1, 1)),
-            Block::new((1, 0), (1, 1)),
-            Block::new((3, 0), (1, 1)),
-            Block::new((3, 3), (1, 1)),
-            Block::new((3, 1), (1, 1)),
-        ],
-    );
+    let initial = Board::new((4, 4), vec![
+        Block::new((0, 0), (1, 1)),
+        Block::new((2, 0), (1, 1)),
+        Block::new((1, 2), (1, 1)),
+        Block::new((0, 1), (1, 1)),
+        Block::new((2, 1), (1, 1)),
+        Block::new((0, 2), (1, 1)),
+        Block::new((3, 2), (1, 1)),
+        Block::new((1, 1), (1, 1)),
+        Block::new((1, 3), (1, 1)),
+        Block::new((2, 3), (1, 1)),
+        Block::new((0, 3), (1, 1)),
+        Block::new((1, 0), (1, 1)),
+        Block::new((3, 0), (1, 1)),
+        Block::new((3, 3), (1, 1)),
+        Block::new((3, 1), (1, 1)),
+    ]);
 
-    let target = Board::new(
-        (4, 4),
-        vec![
-            Block::new((0, 0), (1, 1)),
-            Block::new((1, 0), (1, 1)),
-            Block::new((2, 0), (1, 1)),
-            Block::new((3, 0), (1, 1)),
-            Block::new((0, 1), (1, 1)),
-            Block::new((1, 1), (1, 1)),
-            Block::new((2, 1), (1, 1)),
-            Block::new((3, 1), (1, 1)),
-            Block::new((0, 2), (1, 1)),
-            Block::new((1, 2), (1, 1)),
-            Block::new((2, 2), (1, 1)),
-            Block::new((3, 2), (1, 1)),
-            Block::new((0, 3), (1, 1)),
-            Block::new((1, 3), (1, 1)),
-            Block::new((2, 3), (1, 1)),
-        ],
-    );
+    let target = Board::new((4, 4), vec![
+        Block::new((0, 0), (1, 1)),
+        Block::new((1, 0), (1, 1)),
+        Block::new((2, 0), (1, 1)),
+        Block::new((3, 0), (1, 1)),
+        Block::new((0, 1), (1, 1)),
+        Block::new((1, 1), (1, 1)),
+        Block::new((2, 1), (1, 1)),
+        Block::new((3, 1), (1, 1)),
+        Block::new((0, 2), (1, 1)),
+        Block::new((1, 2), (1, 1)),
+        Block::new((2, 2), (1, 1)),
+        Block::new((3, 2), (1, 1)),
+        Block::new((0, 3), (1, 1)),
+        Block::new((1, 3), (1, 1)),
+        Block::new((2, 3), (1, 1)),
+    ]);
 
     // println!("initial:\n{}", initial);
     // println!("target:\n{}", target);
@@ -97,13 +90,7 @@ fn main() {
     let res = astar(
         &initial,
         |node| node.neighbors().map(|node| (node, 1)),
-        |node| {
-            node.blocks
-                .iter()
-                .enumerate()
-                .map(|(key, val)| val.distance_from(target.blocks[key].position))
-                .sum()
-        },
+        |node| node.blocks.iter().enumerate().map(|(key, val)| val.distance_from(target.blocks[key].position)).sum(),
         |node| *node == target,
         /*
         |node| {
