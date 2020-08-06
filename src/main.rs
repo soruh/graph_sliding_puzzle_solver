@@ -1,9 +1,13 @@
+#![warn(clippy::pedantic)]
+
 mod graph;
 
 fn main() {
     use graph::{Block, Board};
 
-    use pathfinding::directed::{astar::astar, dijkstra::dijkstra};
+    use pathfinding::directed::astar::astar;
+
+    // use pathfinding::directed::dijkstra::dijkstra
 
     /*
     let target_position = (1, 3);

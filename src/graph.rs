@@ -2,48 +2,66 @@
 /// Also provides helper methods for operations using blocks
 #[derive(serde::Serialize, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Block {
-    pub position: (u32, u32),
-    pub size: (u32, u32),
+    pub position: (i32, i32),
+    pub size: (i32, i32),
 }
+
+use std::convert::TryInto;
 
 impl Block {
     pub fn new(position: (u32, u32), size: (u32, u32)) -> Self {
-        Self { position, size }
+        Self {
+            position: (
+                position.0.try_into().expect("the supplied position is too big"),
+                position.1.try_into().expect("the supplied position is too big"),
+            ),
+            size: (
+                size.0.try_into().expect("the supplied size is too big"),
+                size.1.try_into().expect("the supplied size is too big"),
+            ),
+        }
     }
 
     /// Finds the distance from `self` to other using the taxi-cab metric
-    pub fn distance_from(&self, target: (u32, u32)) -> u32 {
-        let x_size = (target.0 as i32 - self.position.0 as i32).abs() as u32;
-        let y_size = (target.1 as i32 - self.position.1 as i32).abs() as u32;
+    #[allow(clippy::cast_possible_wrap)]
+    pub fn distance_from(&self, target: (i32, i32)) -> u32 {
+        let x_size = (target.0 - self.position.0).abs() as u32;
+        let y_size = (target.1 - self.position.1).abs() as u32;
 
         x_size + y_size
     }
 
     /// Checks if `self` overlaps with other
     pub fn overlaps_with(&self, other: &Block) -> bool {
-        self.position.0 <= other.position.0 + other.size.0 - 1
-            && other.position.0 <= self.position.0 + self.size.0 - 1
-            && self.position.1 <= other.position.1 + other.size.1 - 1
-            && other.position.1 <= self.position.1 + self.size.1 - 1
+        self.position.0 < other.position.0 + other.size.0
+            && other.position.0 < self.position.0 + self.size.0
+            && self.position.1 < other.position.1 + other.size.1
+            && other.position.1 < self.position.1 + self.size.1
     }
 }
 
 /// Respresents a board state; It is a node in the graph.
 #[derive(serde::Serialize, Clone, Debug, Hash, Eq, PartialEq, Default)]
 pub struct Board {
-    pub size: (u32, u32),
+    pub size: (i32, i32),
     pub blocks: Vec<Block>,
 }
 
 impl Board {
     pub fn new(size: (u32, u32), blocks: Vec<Block>) -> Self {
-        Self { size, blocks }
+        Self {
+            size: (
+                size.0.try_into().expect("the supplied size is too big"),
+                size.1.try_into().expect("the supplied size is too big"),
+            ),
+            blocks,
+        }
     }
 
     /// creates an iterator that iterates over all Board states that can be
     /// directly reached from this one
     pub fn neighbors(&self) -> Neighbors {
-        Neighbors { board: self.clone(), ..Default::default() }
+        Neighbors { board: self.clone(), ..Neighbors::default() }
     }
 
     /// try to move a block in a direction.
@@ -54,26 +72,24 @@ impl Board {
         let delta = direction.delta();
 
         // Check if the move is invalid, because it would move out of bounds
-        let new_x = block.position.0 as i32 + delta.0;
-        if new_x < 0 || new_x + block.size.0 as i32 > self.size.0 as i32 {
+        let new_x = block.position.0 + delta.0;
+        if new_x < 0 || new_x + block.size.0 > self.size.0 {
             return Err(());
         }
 
-        let new_y = block.position.1 as i32 + delta.1;
-        if new_y < 0 || new_y + block.size.1 as i32 > self.size.1 as i32 {
+        let new_y = block.position.1 + delta.1;
+        if new_y < 0 || new_y + block.size.1 > self.size.1 {
             return Err(());
         }
 
-        let mut moved = block.clone();
-        moved.position.0 = new_x as u32;
-        moved.position.1 = new_y as u32;
+        let mut moved = *block;
+        moved.position.0 = new_x;
+        moved.position.1 = new_y;
 
         // Check if the move is invalid, because it would move into a different block
         for (index, block) in self.blocks.iter().enumerate() {
-            if block_index != index {
-                if moved.overlaps_with(&block) {
-                    return Err(());
-                }
+            if block_index != index && moved.overlaps_with(&block) {
+                return Err(());
             }
         }
 
@@ -85,17 +101,25 @@ impl Board {
 }
 
 impl std::fmt::Display for Board {
+    #[allow(clippy::cast_sign_loss)] // We know that our values are above 0 since they can only be constructed from unsigned integers
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut grid = vec![vec![None; self.size.0 as usize]; self.size.1 as usize];
 
-        let n_digits = (self.blocks.len() as f32).log10().ceil() as usize;
+        #[allow(clippy::cast_possible_truncation)]
+        // we want to truncate the index
+
+        // To overflow a f64s mantisa we would need (2**52) - 1 Blocks,
+        // which would require ((2**52) - 1) * 16 ~= 72 PetaBytes of Memory
+        // at which point we would long be OOM
+        #[allow(clippy::cast_precision_loss)]
+        let n_digits = (self.blocks.len() as f64).log10().ceil() as usize;
 
         for (index, block) in self.blocks.iter().enumerate() {
             let position = block.position;
             let size = block.size;
 
-            for i in position.0..position.0 + size.0 as u32 {
-                for j in position.1..position.1 + size.1 as u32 {
+            for i in position.0..position.0 + size.0 {
+                for j in position.1..position.1 + size.1 {
                     grid[j as usize][i as usize] = Some(index);
                 }
             }
