@@ -23,7 +23,6 @@ impl Block {
     }
 
     /// Finds the distance from `self` to other using the taxi-cab metric
-    #[allow(clippy::cast_possible_wrap)]
     pub fn distance_from(&self, target: (i32, i32)) -> u32 {
         let x_size = (target.0 - self.position.0).abs() as u32;
         let y_size = (target.1 - self.position.1).abs() as u32;
@@ -82,20 +81,20 @@ impl Board {
             return Err(());
         }
 
-        let mut moved = *block;
-        moved.position.0 = new_x;
-        moved.position.1 = new_y;
+        let mut moved_block = *block; // Copy the block
+        moved_block.position.0 = new_x;
+        moved_block.position.1 = new_y;
 
         // Check if the move is invalid, because it would move into a different block
         for (index, block) in self.blocks.iter().enumerate() {
-            if block_index != index && moved.overlaps_with(&block) {
+            if block_index != index && moved_block.overlaps_with(&block) {
                 return Err(());
             }
         }
 
         // The move is valid; return it's result
         let mut new_board = self.clone();
-        new_board.blocks[block_index] = moved;
+        new_board.blocks[block_index] = moved_block;
         Ok(new_board)
     }
 }
